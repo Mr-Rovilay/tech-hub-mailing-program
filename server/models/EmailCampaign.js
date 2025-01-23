@@ -10,6 +10,7 @@ const campaignSchema = new mongoose.Schema({
   template: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'EmailTemplate',
+    required: true,
   },
   recipients: [{
     type: mongoose.Schema.Types.ObjectId,

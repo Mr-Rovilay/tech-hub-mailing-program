@@ -1,17 +1,16 @@
-import React, { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import * as z from "zod"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Textarea } from "@/components/ui/textarea"
-import { campaignApi, contactApi, templateApi } from "../../services/api"
 import { toast } from "sonner"
-import { Loader2, Upload, UserPlus, X } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { format } from "date-fns"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useNavigate } from "react-router-dom"
+import { campaignApi,contactApi, templateApi } from "../../services/api"
 
 const campaignSchema = z.object({
   name: z.string().min(3, "Name must be at least 3 characters"),
@@ -37,7 +36,7 @@ const CampaignCreation = () => {
   const [selectedTemplate, setSelectedTemplate] = useState(null)
   const [selectAll, setSelectAll] = useState(false)
 
-  const getDatesForMonth = () => {
+  const getDatesForMonth = useCallback(() => {
     const dates = []
     const today = new Date()
     for (let i = 0; i < 31; i++) {
@@ -46,45 +45,32 @@ const CampaignCreation = () => {
       dates.push(date)
     }
     return dates
-  }
+  }, [])
 
   useEffect(() => {
-    const fetchTemplates = async () => {
+    const fetchData = async () => {
       try {
-        const response = await templateApi.getAll()
-        const templatesData = response.data.templates || response.data
-        if (!Array.isArray(templatesData)) {
-          throw new Error("Invalid templates data format")
-        }
-        setTemplates(templatesData)
-      } catch (error) {
-        console.error("Templates fetching error:", error)
-        toast.error("Failed to load templates")
-        setTemplates([])
-      } finally {
-        setTemplatesLoading(false)
-      }
-    }
+        const [templatesResponse, contactsResponse] = await Promise.all([templateApi.getAll(), contactApi.getAll()])
 
-    const fetchContacts = async () => {
-      try {
-        const response = await contactApi.getAll()
-        const contactsData = response.data.contacts || response.data
-        if (!Array.isArray(contactsData)) {
-          throw new Error("Invalid contacts data format")
+        const templatesData = templatesResponse.data.templates || templatesResponse.data
+        const contactsData = contactsResponse.data.contacts || contactsResponse.data
+
+        if (!Array.isArray(templatesData) || !Array.isArray(contactsData)) {
+          throw new Error("Invalid data format")
         }
+
+        setTemplates(templatesData)
         setContacts(contactsData)
       } catch (error) {
-        console.error("Contacts fetching error:", error)
-        toast.error("Failed to load contacts")
-        setContacts([])
+        console.error("Data fetching error:", error)
+        toast.error("Failed to load necessary data")
       } finally {
+        setTemplatesLoading(false)
         setContactsLoading(false)
       }
     }
 
-    fetchTemplates()
-    fetchContacts()
+    fetchData()
   }, [])
 
   useEffect(() => {
@@ -118,13 +104,27 @@ const CampaignCreation = () => {
     }
   }
 
-  const handleSelectAll = (checked) => {
-    setSelectAll(checked)
-    setFormData((prev) => ({
-      ...prev,
-      recipients: checked ? contacts.map((contact) => contact._id) : [],
-    }))
-  }
+  const handleSelectAll = useCallback(
+    (checked) => {
+      setSelectAll(checked)
+      setFormData((prev) => ({
+        ...prev,
+        recipients: checked ? contacts.map((contact) => contact._id) : [],
+      }))
+    },
+    [contacts],
+  )
+
+  const handleRecipientChange = useCallback(
+    (checked, contactId) => {
+      setFormData((prev) => ({
+        ...prev,
+        recipients: checked ? [...prev.recipients, contactId] : prev.recipients.filter((id) => id !== contactId),
+      }))
+      setSelectAll(checked && formData.recipients.length + (checked ? 1 : -1) === contacts.length)
+    },
+    [contacts.length, formData.recipients.length],
+  )
 
   const renderStepContent = () => {
     switch (step) {
@@ -191,7 +191,7 @@ const CampaignCreation = () => {
                 No contacts available. Please add contacts first.
               </div>
             ) : (
-              <div className="border rounded-lg overflow-hidden">
+              <div className="overflow-hidden border rounded-lg">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -213,17 +213,7 @@ const CampaignCreation = () => {
                         <TableCell>
                           <Checkbox
                             checked={formData.recipients.includes(contact._id)}
-                            onCheckedChange={(checked) => {
-                              setFormData((prev) => ({
-                                ...prev,
-                                recipients: checked
-                                  ? [...prev.recipients, contact._id]
-                                  : prev.recipients.filter((id) => id !== contact._id),
-                              }))
-                              setSelectAll(
-                                checked && formData.recipients.length + (checked ? 1 : -1) === contacts.length,
-                              )
-                            }}
+                            onCheckedChange={(checked) => handleRecipientChange(checked, contact._id)}
                             aria-label={`Select ${contact.name}`}
                           />
                         </TableCell>
@@ -247,11 +237,11 @@ const CampaignCreation = () => {
                 <Button
                   key={date.toISOString()}
                   variant={formData.scheduledDate?.toDateString() === date.toDateString() ? "default" : "outline"}
-                  className="flex w-full text-xs aspect-square"
+                  className="flex flex-col w-full text-xs aspect-square"
                   onClick={() => setFormData({ ...formData, scheduledDate: date })}
                   disabled={loading}
                 >
-                  <span>{format(date, "d")}</span>,
+                  <span>{format(date, "d")}</span>
                   <span className="text-[10px]">{format(date, "MMM")}</span>
                 </Button>
               ))}
@@ -263,6 +253,9 @@ const CampaignCreation = () => {
             )}
           </div>
         )
+
+      default:
+        return null
     }
   }
 
@@ -280,34 +273,31 @@ const CampaignCreation = () => {
     e.preventDefault()
 
     try {
-      const campaignData = {
-        ...formData,
-        status: formData.scheduledDate ? "scheduled" : "draft",
-      }
-
-      campaignSchema.parse(campaignData)
+      campaignSchema.parse(formData)
 
       setLoading(true)
-      await toast.promise(campaignApi.create(campaignData), {
-        loading: "Creating campaign...",
-        success: () => {
-          setFormData({
-            name: "",
-            templateId: "",
-            recipients: [],
-            scheduledDate: null,
-          })
-          setStep(1)
-          return "Campaign created successfully!"
+      await toast.promise(
+        campaignApi.create(formData),
+        {
+          loading: "Creating campaign...",
+          success: () => {
+            navigate("/campaigns-list")
+            return "Campaign created successfully!"
+          },
+          error: (err) => {
+            console.error("Campaign creation error:", err)
+            return err.response?.data?.error || "Failed to create campaign"
+          },
         },
-        error: "Failed to create campaign",
-      })
-      navigate("/campaigns-list")
+      )
     } catch (error) {
       if (error instanceof z.ZodError) {
         error.errors.forEach((err) => {
           toast.error(err.message)
         })
+      } else {
+        console.error("Campaign creation error:", error)
+        toast.error(error.response?.data?.error || "An unexpected error occurred")
       }
     } finally {
       setLoading(false)
@@ -315,7 +305,7 @@ const CampaignCreation = () => {
   }
 
   return (
-    <div className="max-w-3xl mx-auto p-4">
+    <div className="max-w-3xl p-4 mx-auto">
       <Card>
         <CardHeader>
           <CardTitle>Create Campaign</CardTitle>
@@ -348,7 +338,14 @@ const CampaignCreation = () => {
                 </Button>
               ) : (
                 <Button onClick={handleSubmit} disabled={loading || formData.recipients.length === 0}>
-                  Create Campaign
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    "Create Campaign"
+                  )}
                 </Button>
               )}
             </div>
@@ -360,4 +357,3 @@ const CampaignCreation = () => {
 }
 
 export default CampaignCreation
-

@@ -139,10 +139,8 @@ export default function SendMail() {
           email: manualEmail,
           customVariables: data.customVariables,
         }
-        console.log("Sending single email with data:", singleEmailData)
         response = await emailApi.sendSingle(singleEmailData)
       } else {
-        console.log("Sending bulk email with data:", data)
         response = await emailApi.sendBulk(data)
       }
 
@@ -226,9 +224,9 @@ export default function SendMail() {
                           Select All Contacts
                         </label>
                       </div>
-                      <div className="max-h-60 overflow-y-auto border rounded-md p-2">
+                      <div className="p-2 overflow-y-auto border rounded-md max-h-60">
                         {contacts.map((contact) => (
-                          <div key={contact._id} className="flex items-center space-x-2 py-1">
+                          <div key={contact._id} className="flex items-center py-1 space-x-2">
                             <Controller
                               name="recipients"
                               control={control}

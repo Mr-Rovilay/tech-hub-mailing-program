@@ -11,7 +11,7 @@ const routes = [
   { path: '/dashboard', component: Dashboard },
   { path: '/contacts', component: ContactManagement },
   { path: '/templates', component: TemplateManagement },
-  { path: '/campaigns', component: CampaignCreation },
+  { path: '/campaigns/create', component: CampaignCreation },
   { path: '/campaigns-list', component: CampaignList },
   { path: '/send-email', component: SendMail },
 ];

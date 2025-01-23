@@ -25,10 +25,27 @@ export const templateApi = {
 }
 
 export const campaignApi = {
-  create: (data) => api.post("/campaigns", data),
+  create: (data) => {
+    return api.post("/campaigns", {
+      name: data.name,
+      template: data.templateId, // Changed from templateId to template
+      recipients: data.recipients, // Changed from recipientTags to recipients
+      scheduledDate: data.scheduledDate,
+    })
+  },
   getAll: (page = 1, limit = 10) => api.get(`/campaigns?page=${page}&limit=${limit}`),
   getById: (id) => api.get(`/campaigns/${id}`),
-  update: (id, data) => api.put(`/campaigns/${id}`, data),
+  update: (id, data) => {
+    const payload = {
+      name: data.name,
+      templateId: data.templateId,
+      scheduledDate: data.scheduledDate,
+    }
+    if (data.recipientTags) {
+      payload.recipientTags = data.recipientTags
+    }
+    return api.put(`/campaigns/${id}`, payload)
+  },
   delete: (id) => api.delete(`/campaigns/${id}`),
   execute: (id) => api.post(`/campaigns/${id}/execute`),
 }

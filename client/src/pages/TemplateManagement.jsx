@@ -85,11 +85,11 @@ export default function TemplateManagement() {
             >
               <div className="flex items-center space-x-2">
                 <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  <Button variant="ghost" size="sm" className="w-8 h-8 p-0">
                     {isExpanded ? (
-                      <ChevronUp className="h-4 w-4" />
+                      <ChevronUp className="w-4 h-4" />
                     ) : (
-                      <ChevronDown className="h-4 w-4" />
+                      <ChevronDown className="w-4 h-4" />
                     )}
                   </Button>
                 </CollapsibleTrigger>
@@ -113,7 +113,7 @@ export default function TemplateManagement() {
                 ))}
               </div>
             ) : (
-              <span className="text-muted-foreground text-sm">No variables</span>
+              <span className="text-sm text-muted-foreground">No variables</span>
             )}
           </TableCell>
           <TableCell className="text-right">
@@ -127,7 +127,7 @@ export default function TemplateManagement() {
                 size="icon"
                 onClick={() => handleDelete(template._id)}
               >
-                <Trash2 className="h-4 w-4" />
+                <Trash2 className="w-4 h-4" />
               </Button>
             </div>
           </TableCell>
@@ -142,14 +142,14 @@ export default function TemplateManagement() {
               <Collapsible>
                 <div className="space-y-4">
                   <div>
-                    <h4 className="text-sm font-medium mb-2">Template Content:</h4>
-                    <pre className="whitespace-pre-wrap text-sm bg-background p-4 rounded-md border">
-                      {template.content}
+                    <h4 className="mb-2 text-sm font-medium">Template Content:</h4>
+                    <pre className="p-4 text-sm whitespace-pre-wrap border rounded-md bg-background">
+                      {template?.content}
                     </pre>
                   </div>
                   {template.variables?.length > 0 && (
                     <div>
-                      <h4 className="text-sm font-medium mb-2">Available Variables:</h4>
+                      <h4 className="mb-2 text-sm font-medium">Available Variables:</h4>
                       <div className="flex flex-wrap gap-2">
                         {template.variables.map((variable) => (
                           <Badge key={variable} variant="outline">
@@ -171,7 +171,7 @@ export default function TemplateManagement() {
   return (
     <div className="space-y-8">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+        <CardHeader className="flex flex-row items-center justify-between pb-4 space-y-0">
           <div>
             <CardTitle>Email Templates</CardTitle>
             <CardDescription>Manage your email templates and variables</CardDescription>
@@ -180,11 +180,11 @@ export default function TemplateManagement() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="text-center py-8 text-muted-foreground">
+            <div className="py-8 text-center text-muted-foreground">
               Loading templates...
             </div>
           ) : templates.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
+            <div className="py-8 text-center text-muted-foreground">
               No templates found. Create your first template using the button above.
             </div>
           ) : (

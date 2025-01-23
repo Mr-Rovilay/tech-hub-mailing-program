@@ -1,8 +1,37 @@
 import nodemailer from "nodemailer"
 import dotenv from "dotenv"
 import Template from "../models/EmailTemplate.js"
+import { marked } from 'marked'
+import sanitizeHtml from 'sanitize-html'
 
 dotenv.config()
+
+// Configure marked for safe HTML conversion
+marked.setOptions({
+  headerIds: false,
+  mangle: false
+})
+
+// Configure sanitize-html options
+const sanitizeOptions = {
+  allowedTags: [
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'p', 'a', 'ul', 'ol',
+    'nl', 'li', 'b', 'i', 'strong', 'em', 'strike', 'code', 'hr', 'br', 'div',
+    'table', 'thead', 'caption', 'tbody', 'tr', 'th', 'td', 'pre', 'img'
+  ],
+  allowedAttributes: {
+    'a': ['href', 'name', 'target'],
+    'img': ['src', 'alt', 'title'],
+    '*': ['style']
+  },
+  allowedStyles: {
+    '*': {
+      'color': [/^#(0x)?[0-9a-f]+$/i, /^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$/],
+      'text-align': [/^left$/, /^right$/, /^center$/],
+      'font-size': [/^\d+(?:px|em|%)$/]
+    }
+  }
+}
 
 class EmailService {
   constructor() {
@@ -17,7 +46,41 @@ class EmailService {
     })
   }
 
-  async sendBulkEmail(contacts, templateId, customVariables) {
+  processVariables(text, variables = {}) {
+    let processedText = text
+    
+    // Replace all variables with their values
+    Object.entries(variables).forEach(([key, value]) => {
+      const regex = new RegExp(`\\$\\{${key}\\}|{{${key}}}`, 'g')
+      processedText = processedText.replace(regex, value || '')
+    })
+    
+    return processedText
+  }
+
+  processContent(content) {
+    // Convert markdown to HTML
+    const htmlContent = marked(content)
+    
+    // Sanitize HTML
+    return sanitizeHtml(htmlContent, sanitizeOptions)
+  }
+
+  prepareEmailContent(template, variables) {
+    // Process subject variables
+    const processedSubject = this.processVariables(template.subject, variables)
+    
+    // Process content variables and convert markdown
+    let processedContent = this.processVariables(template.rawContent || template.content, variables)
+    processedContent = this.processContent(processedContent)
+    
+    return {
+      subject: processedSubject,
+      content: processedContent
+    }
+  }
+
+  async sendBulkEmail(contacts, templateId, customVariables = {}) {
     const results = {
       successful: [],
       failed: [],
@@ -30,12 +93,25 @@ class EmailService {
 
     for (const contact of contacts) {
       try {
+        // Prepare variables for this contact
+        const variables = {
+          recipientName: contact.name,
+          recipientEmail: contact.email,
+          organizationName: process.env.ORGANIZATION_NAME,
+          senderName: process.env.EMAIL_FROM_NAME,
+          senderTitle: process.env.SENDER_TITLE,
+          ...customVariables
+        }
+
+        // Process template with variables
+        const { subject, content } = this.prepareEmailContent(template, variables)
+
         await this.transporter.sendMail({
           from: `"${process.env.EMAIL_FROM_NAME}" <${process.env.SMTP_USER}>`,
           to: contact.email,
-          subject: template.subject,
-          html: this.personalizeEmail(template.content, contact, customVariables),
-          text: this.stripHtml(template.content),
+          subject: subject,
+          html: content,
+          text: sanitizeHtml(content, { allowedTags: [] }), // Strip all HTML for text version
         })
 
         results.successful.push(contact.email)
@@ -51,47 +127,40 @@ class EmailService {
     return results
   }
 
-  async sendSingleEmail(contact, templateId, customVariables) {
+  async sendSingleEmail(contact, templateId, customVariables = {}) {
     try {
       const template = await Template.findById(templateId)
       if (!template) {
         throw new Error("Template not found")
       }
 
+      // Prepare variables
+      const variables = {
+        recipientName: contact.name,
+        recipientEmail: contact.email,
+        organizationName: process.env.ORGANIZATION_NAME,
+        senderName: process.env.EMAIL_FROM_NAME,
+        senderTitle: process.env.SENDER_TITLE,
+        ...customVariables
+      }
+
+      // Process template with variables
+      const { subject, content } = this.prepareEmailContent(template, variables)
+
       const mailOptions = {
         from: `"${process.env.EMAIL_FROM_NAME}" <${process.env.SMTP_USER}>`,
         to: contact.email,
-        subject: template.subject,
-        html: this.personalizeEmail(template.content, contact, customVariables),
-        text: this.stripHtml(this.personalizeEmail(template.content, contact, customVariables)),
+        subject: subject,
+        html: content,
+        text: sanitizeHtml(content, { allowedTags: [] }), // Strip all HTML for text version
       }
-
-      console.log("Attempting to send email with options:", mailOptions)
-
       const info = await this.transporter.sendMail(mailOptions)
-      console.log("Message sent: %s", info.messageId)
       return { success: true, messageId: info.messageId }
     } catch (error) {
       console.error("Error sending single email:", error)
       return { success: false, error: error.message }
     }
   }
-
-  personalizeEmail(template, contact, customVariables) {
-    let personalizedContent = template.replace(/{{name}}/g, contact.name || "").replace(/{{email}}/g, contact.email)
-
-    // Replace custom variables
-    for (const [key, value] of Object.entries(customVariables)) {
-      personalizedContent = personalizedContent.replace(new RegExp(`{{${key}}}`, "g"), value)
-    }
-
-    return personalizedContent
-  }
-
-  stripHtml(html) {
-    return html.replace(/<[^>]*>?/gm, "")
-  }
 }
 
 export default new EmailService()
-

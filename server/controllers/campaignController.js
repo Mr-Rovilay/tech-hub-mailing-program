@@ -17,7 +17,12 @@ export const createCampaign = async (req, res) => {
       template,
       recipients,
       scheduledDate,
+      status: scheduledDate && new Date(scheduledDate) > new Date() ? 'scheduled' : 'draft'
     });
+
+    if (campaign.status === 'scheduled') {
+      scheduleCampaign(campaign._id, scheduledDate);
+    }
 
     res.status(201).json(campaign);
   } catch (error) {
@@ -99,10 +104,15 @@ export const updateCampaign = async (req, res) => {
         name: name || campaign.name,
         template: templateId || campaign.template,
         recipients,
-        scheduledDate: scheduledDate || campaign.scheduledDate
+        scheduledDate: scheduledDate || campaign.scheduledDate,
+        status: scheduledDate && new Date(scheduledDate) > new Date() ? 'scheduled' : 'draft'
       },
       { new: true }
     );
+
+    if (updatedCampaign.status === 'scheduled') {
+      scheduleCampaign(updatedCampaign._id, updatedCampaign.scheduledDate);
+    }
 
     res.json(updatedCampaign);
   } catch (error) {
@@ -137,6 +147,10 @@ export const executeCampaign = async (req, res) => {
       return res.status(404).json({ error: "Campaign not found" })
     }
 
+    if (!campaign.template) {
+      return res.status(400).json({ error: "Campaign template is missing" })
+    }
+
     if (campaign.status !== "draft" && campaign.status !== "scheduled") {
       return res.status(400).json({ error: "Campaign cannot be executed" })
     }
@@ -159,19 +173,17 @@ export const executeCampaign = async (req, res) => {
 // Helper function to process campaign
 async function processCampaign(campaign) {
   try {
-    const results = await emailService.sendBulkEmail(
-      campaign.recipients,
-      campaign.template._id,
-      campaign.template.content,
-    )
+    if (!campaign.template) {
+      throw new Error("Campaign template is missing")
+    }
+
+    const results = await emailService.sendBulkEmail(campaign.recipients, campaign.template, campaign.template.content)
 
     // Update campaign stats
     campaign.stats.sent += results.successful.length
     campaign.stats.failed += results.failed.length
     campaign.status = "completed"
     await campaign.save()
-
-    console.log(`Campaign ${campaign._id} completed:`, results)
   } catch (error) {
     console.error(`Error processing campaign ${campaign._id}:`, error)
     campaign.status = "failed"

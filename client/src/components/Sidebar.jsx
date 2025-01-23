@@ -12,7 +12,7 @@ const Sidebar = () => {
     { path: '/dashboard', icon: Mail, label: 'Dashboard' },
     { path: '/contacts', icon: Users, label: 'Contacts' },
     { path: '/templates', icon: FileText, label: 'Templates' },
-    { path: '/campaigns', icon: Send, label: 'Create Campaign' },
+    { path: '/campaigns/create', icon: Send, label: 'Create Campaign' },
     { path: '/campaigns-list', icon: List, label: 'Campaign List' },
     { path: '/send-email', icon: Send, label: 'Send Mail' },
   ];

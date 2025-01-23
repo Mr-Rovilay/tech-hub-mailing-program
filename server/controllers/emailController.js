@@ -41,20 +41,17 @@ export const sendBulkEmail = async (req, res) => {
 
 export const sendSingleEmail = async (req, res) => {
   try {
-    console.log("Received single email request:", req.body)
     const { templateId, email, customVariables } = req.body
 
     // Validate required fields
     if (!templateId || !email) {
       return res.status(400).json({ error: "Template ID and email are required" })
     }
-
     // Get contact (or create a temporary one if not found)
     let contact = await Contact.findOne({ email })
     if (!contact) {
       contact = { email } // Temporary contact object
     }
-
     // Send email
     const result = await emailService.sendSingleEmail(contact, templateId, customVariables)
 
