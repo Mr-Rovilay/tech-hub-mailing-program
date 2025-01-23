@@ -112,7 +112,7 @@ export const getTemplates = async (req, res) => {
     }
 
     const templates = await EmailTemplate.find(query)
-      .select('name subject category variables createdAt updatedAt')
+      .select('name subject category variables rawContent content createdAt updatedAt')
       .limit(limit * 1)
       .skip((page - 1) * limit)
       .sort({ createdAt: -1 });
@@ -136,12 +136,12 @@ export const getTemplateById = async (req, res) => {
     if (!template) {
       return res.status(404).json({ error: 'Template not found' });
     }
-    res.json({
-      ...template.toObject(),
-      content: template.rawContent || template.content
-    });
+    
+    const templateObject = template.toObject();
+    templateObject.content = template.rawContent || template.content;
+    
+    res.json(templateObject);
   } catch (error) {
-    console.error('Template fetch error:', error);
     res.status(500).json({ error: error.message });
   }
 };
