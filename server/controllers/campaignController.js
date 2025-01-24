@@ -33,30 +33,29 @@ export const createCampaign = async (req, res) => {
 
 export const getCampaigns = async (req, res) => {
   try {
-    const { page = 1, limit = 10, status } = req.query;
-    
-    const query = {};
+    const { status, include, search } = req.query
+
+    const query = {}
     if (status) {
-      query.status = status;
+      query.status = status
+    }
+    if (search) {
+      query.name = { $regex: search, $options: "i" }
     }
 
-    const campaigns = await EmailCampaign.find(query)
-      .populate('template', 'name subject')
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .sort({ createdAt: -1 });
+    let campaignsQuery = EmailCampaign.find(query).sort({ createdAt: -1 })
 
-    const count = await EmailCampaign.countDocuments(query);
+    if (include === "recipients") {
+      campaignsQuery = campaignsQuery.populate("recipients")
+    }
+    const campaigns = await campaignsQuery
 
-    res.json({
-      campaigns,
-      totalPages: Math.ceil(count / limit),
-      currentPage: page
-    });
+    res.json({ campaigns })
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("Error in getCampaigns:", error)
+    res.status(500).json({ error: error.message })
   }
-};
+}
 
 export const getCampaignById = async (req, res) => {
   try {
