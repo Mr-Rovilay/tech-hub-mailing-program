@@ -122,7 +122,7 @@ export const addContact = async (req, res) => {
   try {
     const client = await Contact.findById(req.params.id);
     if (!client) {
-      return res.status(404).json({ message: 'Client not found' });
+      return res.status(404).json({ message: 'Contact not found' });
     }
     res.json(client);
   } catch (error) {
@@ -135,7 +135,7 @@ export const updateContact = async (req, res) => {
   try {
     const client = await Contact.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!client) {
-      return res.status(404).json({ message: 'Client not found' });
+      return res.status(404).json({ message: 'Contact not found' });
     }
     res.json(client);
   } catch (error) {
@@ -148,9 +148,9 @@ export const deleteSingleContact = async (req, res) => {
   try {
     const client = await Contact.findByIdAndDelete(req.params.id);
     if (!client) {
-      return res.status(404).json({ message: 'Client not found' });
+      return res.status(404).json({ message: 'Contact not found' });
     }
-    res.json({ message: 'Client deleted successfully' });
+    res.json({ message: 'Contact deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

@@ -95,9 +95,9 @@ class EmailService {
       try {
         // Prepare variables for this contact
         const variables = {
-          recipientName: contact.name,
-          recipientEmail: contact.email,
-          organizationName: process.env.ORGANIZATION_NAME,
+          contactName: contact.name,
+          contactEmail: contact.email,
+          contactOrganization: contact.organization,
           senderName: process.env.EMAIL_FROM_NAME,
           senderTitle: process.env.SENDER_TITLE,
           ...customVariables
@@ -136,9 +136,9 @@ class EmailService {
 
       // Prepare variables
       const variables = {
-        recipientName: contact.name,
-        recipientEmail: contact.email,
-        organizationName: process.env.ORGANIZATION_NAME,
+        contactName: contact.name,
+        contactEmail: contact.email,
+        contactOrganization: contact.organization,
         senderName: process.env.EMAIL_FROM_NAME,
         senderTitle: process.env.SENDER_TITLE,
         ...customVariables
