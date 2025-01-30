@@ -4,18 +4,18 @@ import emailService from '../services/emailService.js';
 
 export const createCampaign = async (req, res) => {
   try {
-    const { name, template, recipients, scheduledDate } = req.body;
+    const { name, template, contacts, scheduledDate } = req.body;
 
-    // Validate recipients
-    const validRecipients = await Contact.find({ _id: { $in: recipients } });
-    if (validRecipients.length !== recipients.length) {
-      return res.status(400).json({ error: 'Invalid recipients provided' });
+    // Validate contacts
+    const validRecipients = await Contact.find({ _id: { $in: contacts } });
+    if (validRecipients.length !== contacts.length) {
+      return res.status(400).json({ error: 'Invalid contacts provided' });
     }
 
     const campaign = await EmailCampaign.create({
       name,
       template,
-      recipients,
+      contacts,
       scheduledDate,
       status: scheduledDate && new Date(scheduledDate) > new Date() ? 'scheduled' : 'draft'
     });
@@ -45,8 +45,8 @@ export const getCampaigns = async (req, res) => {
 
     let campaignsQuery = EmailCampaign.find(query).sort({ createdAt: -1 })
 
-    if (include === "recipients") {
-      campaignsQuery = campaignsQuery.populate("recipients")
+    if (include === "contacts") {
+      campaignsQuery = campaignsQuery.populate("contacts")
     }
     const campaigns = await campaignsQuery
 
@@ -61,7 +61,7 @@ export const getCampaignById = async (req, res) => {
   try {
     const campaign = await EmailCampaign.findById(req.params.id)
       .populate('template')
-      .populate('recipients');
+      .populate('contacts');
 
     if (!campaign) {
       return res.status(404).json({ error: 'Campaign not found' });
@@ -75,7 +75,7 @@ export const getCampaignById = async (req, res) => {
 
 export const updateCampaign = async (req, res) => {
   try {
-    const { name, templateId, recipientTags, scheduledDate } = req.body;
+    const { name, templateId, contactTags, scheduledDate } = req.body;
     
     // Only allow updates if campaign is in draft status
     const campaign = await EmailCampaign.findById(req.params.id);
@@ -87,14 +87,14 @@ export const updateCampaign = async (req, res) => {
       return res.status(400).json({ error: 'Can only update draft campaigns' });
     }
 
-    // Update recipients if tags provided
-    let recipients = campaign.recipients;
-    if (recipientTags) {
+    // Update contacts if tags provided
+    let contacts = campaign.contacts;
+    if (contactTags) {
       const newRecipients = await Contact.find({
-        tags: { $in: recipientTags },
+        tags: { $in: contactTags },
         isActive: true
       }).select('_id');
-      recipients = newRecipients.map(r => r._id);
+      contacts = newRecipients.map(r => r._id);
     }
 
     const updatedCampaign = await EmailCampaign.findByIdAndUpdate(
@@ -102,7 +102,7 @@ export const updateCampaign = async (req, res) => {
       {
         name: name || campaign.name,
         template: templateId || campaign.template,
-        recipients,
+        contacts,
         scheduledDate: scheduledDate || campaign.scheduledDate,
         status: scheduledDate && new Date(scheduledDate) > new Date() ? 'scheduled' : 'draft'
       },
@@ -140,7 +140,7 @@ export const deleteCampaign = async (req, res) => {
 
 export const executeCampaign = async (req, res) => {
   try {
-    const campaign = await EmailCampaign.findById(req.params.id).populate("template").populate("recipients")
+    const campaign = await EmailCampaign.findById(req.params.id).populate("template").populate("contacts")
 
     if (!campaign) {
       return res.status(404).json({ error: "Campaign not found" })
@@ -176,7 +176,7 @@ async function processCampaign(campaign) {
       throw new Error("Campaign template is missing")
     }
 
-    const results = await emailService.sendBulkEmail(campaign.recipients, campaign.template, campaign.template.content)
+    const results = await emailService.sendBulkEmail(campaign.contacts, campaign.template, campaign.template.content)
 
     // Update campaign stats
     campaign.stats.sent += results.successful.length
@@ -197,7 +197,7 @@ async function scheduleCampaign(campaignId, scheduledDate) {
     try {
       const campaign = await EmailCampaign.findById(campaignId)
         .populate('template')
-        .populate('recipients');
+        .populate('contacts');
       
       if (campaign && campaign.status === 'scheduled') {
         await processCampaign(campaign);

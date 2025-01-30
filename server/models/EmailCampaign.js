@@ -12,7 +12,7 @@ const campaignSchema = new mongoose.Schema({
     ref: 'EmailTemplate',
     required: true,
   },
-  recipients: [{
+  contacts: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Contact'
   }],

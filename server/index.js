@@ -8,6 +8,7 @@ import templateRoutes from './routes/templateRoutes.js';
 import emailRoutes from './routes/emailRoutes.js';
 import campaignRoutes from './routes/campaignRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import statsRoutes from "./routes/stats.js";
 
 dotenv.config();
 
@@ -30,6 +31,9 @@ app.use('/api/contacts', contactRoutes);
 app.use('/api/emails', emailRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/campaigns', campaignRoutes);
+
+app.use("/api/stats", statsRoutes);
+
 
 // Error handling
 app.use(errorHandler);
